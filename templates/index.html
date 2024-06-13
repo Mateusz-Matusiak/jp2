@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stan Magazynu</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <h1>Stan Magazynu</h1>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nazwa Artykułu</th>
+                <th>Ilość</th>
+                <th>Opis</th>
+                <th>Akcje</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in data %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.description }}</td>
+                <td>
+                    <a href="{{ url_for('edit', item_id=item.id) }}">Edytuj</a>
+                    <form action="{{ url_for('delete', item_id=item.id) }}" method="POST" style="all:unset; display:inline;">
+                        <button type="submit">Usuń</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <br>
+    <div class="element">
+        <a href="{{ url_for('add') }}" class="button">Dodaj Nowy Artykuł</a>
+    </div>
+</body>
+</html>

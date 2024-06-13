@@ -1,43 +1,57 @@
-import sqlite3
-from flask import Flask, render_template, request
-from product import Product, Products
+from flask import Flask, render_template, request, redirect, url_for
+
+from models import SessionLocal, WarehouseItem
 
 app = Flask(__name__)
 
-def get_db_connection():
-    conn = sqlite3.connect('database.db')
-    conn.row_factory = sqlite3.Row
-    return conn
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
-
-@app.route('/api', methods = ['GET'])
+@app.route('/')
 def index():
-    conn = get_db_connection()
-    store = conn.execute('SELECT * FROM store').fetchall()
-    conn.close()
-    products = []
-    for product in store:
-        products.append(Product(product['id'], product['product_name'],
-                                product['quantity'], product['product_details']))
-    products = Products(products)
-    return products.toJSON()
+    with SessionLocal() as db:
+        items = db.query(WarehouseItem).all()
+    return render_template('index.html', data=items)
 
-@app.route('/api/add_product', methods=['GET', 'POST'])
-def add_message():
-    content = request.get_json(silent=True)
-    product_data = content.get("product")
-    product = Product(**product_data)
-    conn = get_db_connection()
-    cursor = conn.cursor()
+@app.route('/edit/<int:item_id>', methods=['GET', 'POST'])
+def edit(item_id):
+    with SessionLocal() as db:
+        item = db.query(WarehouseItem).filter(WarehouseItem.id == item_id).first()
+        if request.method == 'POST':
+            if item:
+                item.name = request.form['name']
+                item.quantity = request.form['quantity']
+                item.description = request.form['description']
+                db.commit()
+            return redirect(url_for('index'))
+        return render_template('edit.html', item=item)
 
-    sqlite_insert_with_param = "INSERT INTO store (product_name, quantity, product_details) VALUES (?, ?, ?)"
+@app.route('/delete/<int:item_id>', methods=['POST'])
+def delete(item_id):
+    with SessionLocal() as db:
+        item = db.query(WarehouseItem).filter(WarehouseItem.id == item_id).first()
+        if item:
+            db.delete(item)
+            db.commit()
+    return redirect(url_for('index'))
 
-    data_tuple = (product.product_name, product.quantity, product.product_details)
-    cursor.execute(sqlite_insert_with_param, data_tuple)
-    conn.commit()
-    cursor.close()
-    return "hello"
-
+@app.route('/add', methods=['GET', 'POST'])
+def add():
+    if request.method == 'POST':
+        with SessionLocal() as db:
+            new_item = WarehouseItem(
+                name=request.form['name'],
+                quantity=request.form['quantity'],
+                description=request.form['description']
+            )
+            db.add(new_item)
+            db.commit()
+        return redirect(url_for('index'))
+    return render_template('add.html')
 
 if __name__ == '__main__':
-    app.run()
+    app.run(debug=True)
